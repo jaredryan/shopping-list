@@ -1,82 +1,133 @@
-var striked = true;
-var plain = false;
+// module-level global vars
 
-// State
+// we're using a single, global state object
+// in this app
 var state = {
-	list: []
+  items: []
 };
 
-// Modifiers
-var addItem = function(state, item) {
-	var entry = [item, plain];
-	state.list.push(entry);
+
+var listItemTemplate = (
+  '<li>' +
+    '<span class="shopping-item js-shopping-item"></span>' +
+    '<div class="shopping-item-controls">' +
+      '<button class="js-shopping-item-toggle">' +
+        '<span class="button-label">check</span>' +
+      '</button>' +
+      '<button class="js-shopping-item-delete">' +
+        '<span class="button-label">delete</span>' +
+      '</button>' +
+    '</div>' +
+  '</li>'
+);
+
+
+// state management
+function addItem(state, item) {
+  state.items.push({
+    displayName: item,
+    checkedOff: false
+  });
 }
 
-var removeItem = function(state, item) {
-	var index = list.indexOf(item);
-	delete state.list[index];
+function getItem(state, itemIndex) {
+  return state.items[itemIndex];
 }
 
-var toggleItem = function(state, item_name) {
-	// Search for striked
-	var location = state.list.indexOf([item_name, striked]);
-	if (location === -1) {
-		// Then must be plain, so make striked
-		var actualLocation = state.list.indexOf([item, plain]);
-		state.list[actualLocation][1] = striked;
-	} else {
-		// Is striked, change to plain
-		state.list[location][1] = plain;
-	}
+function deleteItem(state, itemIndex) {
+  state.items.splice(itemIndex, 1);
 }
 
-var uncheckItem = function(state, item) {
-	var index = list.indexOf(item);
-	style.list[index][1] = plain;
+function updateItem(state, itemIndex, newItemState) {
+  state.items[itemIndex] = newItemState;
 }
 
-// Render
-var renderList = function(state, element) {
-	var itemsHTML = state.list.map(function(item) {
-		if (item[1] === striked) {
-			var firstString = '<li><span class="shopping-item ' + 
-							  'shopping-item__checked">';
-		} else {
-			var firstString = '<li><span class="shopping-item">';
-		}
-        var finalString = firstString + item[0] + '</span>' + 
-			'<div class="shopping-item-controls">' + 
-         		'<button class="shopping-item-toggle">' + 
-            		'<span class="button-label">check</span>' + 
-          		'</button>' + 
-          		'<button class="shopping-item-delete">' + 
-            		'<span class="button-label">delete</span>' + 
-          		'</button>' + 
-        	'</div>' + 
-      	'</li>';
-      	return finalString;
+// DOM manipulation
+
+function renderItem(item, itemId, itemTemplate, itemDataAttr) {
+  var element = $(itemTemplate);
+  element.find('.js-shopping-item').text(item.displayName);
+  if (item.checkedOff) {
+    element.find('.js-shopping-item').addClass('shopping-item__checked');
+  }
+  element.find('.js-shopping-item-toggle')
+  element.attr(itemDataAttr, itemId);
+  return element;
+}
+
+function renderList(state, listElement, itemDataAttr) {
+  var itemsHTML = state.items.map(
+    function(item, index) {
+      return renderItem(item, index, listItemTemplate, itemDataAttr);
+  });
+  listElement.html(itemsHTML);
+}
+
+
+// Event listeners
+
+function handleItemAdds(
+  formElement, newItemIdentifier, itemDataAttr, listElement, state) {
+
+  formElement.submit(function(event) {
+    event.preventDefault();
+    var newItem = formElement.find(newItemIdentifier).val();
+    addItem(state, newItem);
+    renderList(state, listElement, itemDataAttr);
+    // reset form
+    this.reset();
+  });
+}
+
+function handleItemDeletes(
+  formElement, removeIdentifier, itemDataAttr, listElement, state) {
+
+  listElement.on('click', removeIdentifier, function(event) {
+    var itemIndex = parseInt($(this).closest('li').attr(itemDataAttr));
+    deleteItem(state, itemIndex);
+    renderList(state, listElement, itemDataAttr);
+  })
+}
+
+
+function handleItemToggles(
+  listElement, toggleIdentifier, itemDataAttr, state) {
+
+  listElement.on('click', toggleIdentifier, function(event) {
+    var itemId = $(event.currentTarget.closest('li')).attr(itemDataAttr);
+    var oldItem = getItem(state, itemId);
+
+    updateItem(state, itemId, {
+      displayName: oldItem.displayName,
+      checkedOff: !oldItem.checkedOff
     });
-    element.html(itemsHTML);
+    renderList(state, listElement, itemDataAttr)
+  });
 }
 
-// Event Listeners
-$('.js-shopping-list-form').submit(function(event) {
-    // event.preventDefault();
-    addItem(state, $('.shopping-list-entry').val());
-    renderList(state, $('.shopping-list'));
+
+$(function() {
+  var formElement = $('#js-shopping-list-form');
+  var listElement = $('.js-shopping-list');
+
+  // from index.html -- it's the id of the input
+  // containing shopping list items
+  var newItemIdentifier = '#js-new-item';
+
+  // from `listItemTemplate` at top of this file. for each
+  // displayed shopping list item, we'll be adding a button
+  // that has this class name on it
+  var removeIdentifier = '.js-shopping-item-delete';
+
+  // we'll use this attribute to store the id of the list item
+  var itemDataAttr = 'data-list-item-id';
+
+  //
+  var toggleIdentifier = '.js-shopping-item-toggle'
+
+  handleItemAdds(
+    formElement, newItemIdentifier, itemDataAttr, listElement, state);
+  handleItemDeletes(
+    formElement, removeIdentifier, itemDataAttr, listElement, state);
+  handleItemToggles(listElement, toggleIdentifier, itemDataAttr, state);
 });
-
-$('.shopping-item-toggle').click(function(event) {
-	var item_name = $(this).parent().parent().attr('span').val();
-	toggleItem(state, item_name);
-});
-
-// $('.shopping-item-delete').click(function(event) {
-	
-// 	var item_name = ; // Get name of item associated with item
-// 	toggleItem(state, item_name);
-//     renderList(state, $('.shopping-list'));
-// });
-
-
-
